@@ -434,7 +434,32 @@ parameterizations are given in [Technical Details](./TECHNICAL_DETAILS.md).
 
 These are **max-stable** models. They are useful for spatial dependence of
 block maxima when max-stability is a reasonable approximation. A successful
-fit does not establish max-stability or stationarity.
+fit does not establish max-stability or stationarity. Max-stable models
+represent asymptotic dependence for non-degenerate pairs; this package does
+not implement an asymptotically independent spatial extremes model. If
+diagnostics or scientific knowledge suggest asymptotic independence, do not
+force a max-stable fit: use an approach designed for that regime and validate
+it separately.
+
+### Model limitations and practical choices
+
+Some limitations are implementation issues that can be checked or rejected;
+others are consequences of the chosen statistical model and cannot be removed
+without changing the model or its assumptions.
+
+| Limitation | Practical consequence | What to do |
+|---|---|---|
+| Smith covariance must be symmetric positive definite. | A nonsymmetric or singular matrix does not define the Gaussian kernel used by the model. | `SmithModel` now rejects non-finite, nonsymmetric, or non-positive-definite covariance matrices. |
+| Smith simulation uses a finite storm-center window. | Storms centered outside the window can be omitted, especially near the domain edge. | Increase `buffer_factor` and `max_points`, then check whether fields and summaries are sensitive to those choices. A larger window costs more computation and does not make the construction exactly infinite. |
+| Schlather cannot attain pairwise independence. | Its extremal coefficient approaches $1+1/\sqrt{2}\approx1.707$, rather than 2, at large separation. | If the data support near-independence at long distances, assess Brown-Resnick or Smith instead; compare dependence summaries rather than relying only on optimizer convergence. |
+| Schlather custom correlations and Brown-Resnick custom variograms are user supplied. | A function may return plausible pair values yet fail to define a valid Gaussian correlation matrix or conditionally negative-definite variogram. The package does not prove global validity for arbitrary functions. | Prefer the built-in powered-exponential correlation or power variogram. For custom functions, verify positive semidefiniteness/variogram validity for the intended domain and confirm simulation Cholesky factorization succeeds. Successful factorization on one layout is not a proof of validity on all layouts. |
+| Brown-Resnick and Schlather use probabilistic stopping bounds; all simulators have a hard point cap. | Simulation can be truncated, and Gaussian spectral weights are unbounded, so their stopping conditions are approximate. | Increase `max_points`; for Schlather and Brown-Resnick also consider increasing `practical_bound`. Repeat with stricter settings and compare marginal and dependence summaries to assess sensitivity. |
+| The default Brown-Resnick variogram and Schlather correlation are isotropic. | Dependence is a function of Euclidean distance and cannot express direction-specific range/smoothness. | Use anisotropic Smith when its Gaussian-kernel form is appropriate, or supply a scientifically justified valid custom dependence function where supported. |
+
+Changing these choices is not always a “fix”: model flexibility adds parameters
+and can reduce identifiability with limited sites or replicates. The model
+equations and simulator approximations are described in
+[Technical Details](./TECHNICAL_DETAILS.md).
 
 ### 2.4 Pairwise composite-likelihood fitting
 

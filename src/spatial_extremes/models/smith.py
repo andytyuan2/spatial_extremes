@@ -89,10 +89,17 @@ class SmithModel:
         self.cov = np.asarray(self.cov, dtype=float)
         if self.cov.shape != (2, 2):
             raise ValueError("cov must be a 2x2 matrix")
+        if not np.all(np.isfinite(self.cov)):
+            raise ValueError("cov must contain only finite values")
+        if not np.allclose(self.cov, self.cov.T, rtol=1e-10, atol=1e-12):
+            raise ValueError("cov must be symmetric")
+        self.cov = (self.cov + self.cov.T) / 2
+        try:
+            np.linalg.cholesky(self.cov)
+        except np.linalg.LinAlgError as exc:
+            raise ValueError("cov must be positive definite") from exc
         self._inv_cov = np.linalg.inv(self.cov)
         self._det_cov = np.linalg.det(self.cov)
-        if self._det_cov <= 0:
-            raise ValueError("cov must be positive definite")
         self._norm_const = 1.0 / (2 * np.pi * np.sqrt(self._det_cov))
         self._kernel_max = self._norm_const  # phi(0; Sigma), the sup of phi
 

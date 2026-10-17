@@ -54,5 +54,15 @@ def test_simulate_matches_closed_form_bivariate_cdf():
 
 
 def test_cov_must_be_positive_definite():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="positive definite"):
         SmithModel(cov=np.array([[1.0, 2.0], [2.0, 1.0]]))  # not PSD
+
+
+def test_cov_must_be_symmetric():
+    with pytest.raises(ValueError, match="symmetric"):
+        SmithModel(cov=np.array([[2.0, 0.5], [0.1, 1.0]]))
+
+
+def test_cov_must_be_finite():
+    with pytest.raises(ValueError, match="finite"):
+        SmithModel(cov=np.array([[1.0, np.nan], [np.nan, 1.0]]))
