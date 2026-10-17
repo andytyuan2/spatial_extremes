@@ -32,6 +32,8 @@ except ImportError:
 def _to_numpy(df):
     if pl is not None and isinstance(df, pl.DataFrame):
         return df.to_numpy()
+    if isinstance(df, np.ndarray):
+        return df
     return df.to_numpy()
 
 
@@ -73,19 +75,40 @@ def fit_pairwise_likelihood(
         resampled per iteration) to keep fitting tractable. `None` uses
         all pairs.
     """
-    values = _to_numpy(frechet_df)
+    values = np.asarray(_to_numpy(frechet_df), dtype=float)
+    if values.ndim != 2:
+        raise ValueError("frechet_df must be a two-dimensional table of observations")
     n_obs, D = values.shape
     coords = np.asarray(coords, dtype=float)
-    if coords.shape[0] != D:
-        raise ValueError(f"coords has {coords.shape[0]} rows but frechet_df has {D} columns")
+    if D < 2:
+        raise ValueError("At least two sites are required for pairwise fitting")
+    if coords.shape != (D, 2):
+        raise ValueError(f"coords must have shape ({D}, 2), got {coords.shape}")
+    if not np.all(np.isfinite(coords)):
+        raise ValueError("coords must contain only finite values")
+    if np.isinf(values).any():
+        raise ValueError("Observations must be finite or missing (NaN)")
+    observed = np.isfinite(values)
+    if np.any(values[observed] <= 0):
+        raise ValueError("Unit-Frechet observations must be strictly positive")
 
-    all_pairs = list(combinations(range(D), 2))
-    if max_pairs is not None and max_pairs < len(all_pairs):
+    if max_pairs is not None and (
+        isinstance(max_pairs, bool) or not isinstance(max_pairs, (int, np.integer)) or max_pairs < 1
+    ):
+        raise ValueError("max_pairs must be a positive integer")
+
+    pairs = []
+    for i, j in combinations(range(D), 2):
+        valid = np.isfinite(values[:, i]) & np.isfinite(values[:, j])
+        if np.any(valid):
+            pairs.append((i, j, values[valid, i], values[valid, j]))
+    if not pairs:
+        raise ValueError("No site pairs have jointly observed values")
+
+    if max_pairs is not None and max_pairs < len(pairs):
         rng = rng or np.random.default_rng()
-        idx = rng.choice(len(all_pairs), size=max_pairs, replace=False)
-        pairs = [all_pairs[k] for k in idx]
-    else:
-        pairs = all_pairs
+        idx = rng.choice(len(pairs), size=max_pairs, replace=False)
+        pairs = [pairs[k] for k in idx]
 
     if x0_free is None:
         x0_free = np.zeros(model_class.n_free_params)
@@ -96,9 +119,9 @@ def fit_pairwise_likelihood(
         except (ValueError, np.linalg.LinAlgError):
             return 1e12
         total = 0.0
-        for i, j in pairs:
+        for i, j, z1, z2 in pairs:
             h = coords[i] - coords[j]
-            logpdf = model.bivariate_logpdf(values[:, i], values[:, j], h)
+            logpdf = model.bivariate_logpdf(z1, z2, h)
             if not np.all(np.isfinite(logpdf)):
                 return 1e12
             total += np.sum(logpdf)

@@ -8,7 +8,13 @@ behind R's `SpatialExtremes` package.
 ## Install
 
 ```bash
-pip install -e ".[geo,polars,dev]"
+pip install -e ".[geo,polars,neural,dev]"
+```
+
+For the core package only:
+
+```bash
+pip install spatial-extremes
 ```
 
 ## What's here
@@ -25,6 +31,35 @@ pip install -e ".[geo,polars,dev]"
 - `spatial_extremes.fitting` -- `fit_pairwise_likelihood`: generic
   composite-likelihood parameter fitting that works with any of the
   three models.
+
+`fit_gev_by_site` accepts either wide tables (one column per station) or
+long tables with an explicit station and value column:
+
+```python
+gev = fit_gev_by_site(
+    observations, site_col="station_id", value_col="annual_max_mm"
+)
+```
+
+Missing (`NaN`/null) maxima are omitted independently for each station.
+`fit_pairwise_likelihood` similarly uses the jointly observed replicates
+for each site pair, so incomplete spatial records need not be discarded
+as whole rows. This relies on missingness being ignorable (for example,
+missing completely at random). Pass unit-Frechet values in a wide table,
+with columns and coordinate rows in exactly the same site order.
+Coordinates should use consistent projected linear units.
+
+The GEV and pairwise-dependence procedures assume stationary, identically
+distributed replicates. For time trends or covariate-dependent margins,
+model those effects before using the fitted margins to transform data;
+the package does not yet fit non-stationary GEV margins.
+
+The example data generator uses a Gaussian copula with an exponential
+spatial correlation and adds a time trend to GEV locations. It does not
+generate a max-stable process. Consequently, fitting Smith,
+Schlather, or Brown-Resnick to those observations is useful as a
+misspecification/workflow check, but should not be interpreted as
+recovering a true max-stable model or its generating range.
 
 ## Status / honesty notes
 

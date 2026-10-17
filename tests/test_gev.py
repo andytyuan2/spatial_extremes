@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 from scipy import stats
 
 from spatial_extremes.gev import fit_gev, fit_gev_by_site
@@ -45,3 +46,47 @@ def test_fit_gev_by_site_multiple_columns():
     result = fit_gev_by_site(df)
     assert set(result["site"]) == {"site_a", "site_b"}
     assert (result["converged"]).all()
+
+
+def test_fit_gev_by_site_long_format_with_missing_values():
+    rng = np.random.default_rng(4)
+    a = stats.gumbel_r.rvs(loc=1.0, scale=2.0, size=80, random_state=rng)
+    b = stats.gumbel_r.rvs(loc=4.0, scale=1.5, size=80, random_state=rng)
+    a[::10] = np.nan
+    b[::8] = np.nan
+    df = pd.DataFrame({
+        "station_id": np.repeat(["a", "b"], 80),
+        "year": np.tile(np.arange(80), 2),
+        "annual_max": np.concatenate([a, b]),
+        "elevation": np.repeat([100.0, 250.0], 80),
+    })
+
+    result = fit_gev_by_site(df, site_col="station_id", value_col="annual_max")
+
+    assert result["site"].tolist() == ["a", "b"]
+    assert result["n_obs"].tolist() == [72, 70]
+    assert result["converged"].all()
+
+
+def test_fit_gev_by_site_accepts_polars_long_table():
+    pl = pytest.importorskip("polars")
+    rng = np.random.default_rng(5)
+    x = stats.gumbel_r.rvs(loc=2.0, scale=1.5, size=40, random_state=rng)
+    x[::9] = np.nan
+    df = pl.DataFrame({
+        "station_id": ["site_a"] * len(x),
+        "year": np.arange(len(x)),
+        "annual_max": x,
+    })
+
+    result = fit_gev_by_site(df, site_col="station_id", value_col="annual_max")
+
+    assert result.loc[0, "site"] == "site_a"
+    assert result.loc[0, "n_obs"] == np.isfinite(x).sum()
+
+
+def test_fit_gev_rejects_infinite_observations():
+    x = np.linspace(0.0, 1.0, 20)
+    x[0] = np.inf
+    with pytest.raises(ValueError, match="finite or missing"):
+        fit_gev(x)
