@@ -30,12 +30,16 @@ roughness.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 
-from ._shared import de_haan_bivariate_cdf, de_haan_bivariate_logpdf, de_haan_extremal_coefficient
+from ._shared import (
+    de_haan_bivariate_cdf,
+    de_haan_bivariate_logpdf,
+    de_haan_extremal_coefficient,
+)
 
 
 def power_variogram(h: np.ndarray, range_: float, alpha: float = 1.0) -> np.ndarray:
@@ -66,7 +70,7 @@ class BrownResnickModel:
     free_param_names = ("log_range", "logit_alpha")
 
     @classmethod
-    def from_free_params(cls, free_params, **kwargs) -> "BrownResnickModel":
+    def from_free_params(cls, free_params, **kwargs) -> BrownResnickModel:
         log_range, logit_alpha = free_params
         range_ = np.exp(log_range)
         alpha = 2.0 / (1.0 + np.exp(-logit_alpha))

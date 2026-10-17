@@ -46,7 +46,7 @@ def fmadogram(frechet_df, coords: np.ndarray) -> pd.DataFrame:
     """
     values, cols = _to_numpy(frechet_df)
     coords = np.asarray(coords, dtype=float)
-    n, D = values.shape
+    _, D = values.shape
     if coords.shape[0] != D:
         raise ValueError(f"coords has {coords.shape[0]} rows but frechet_df has {D} columns")
 

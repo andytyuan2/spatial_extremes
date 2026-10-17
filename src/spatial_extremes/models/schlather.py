@@ -30,11 +30,10 @@ included in the test suite.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
-from scipy import stats
 
 
 def powered_exponential(h: np.ndarray, range_: float, smoothness: float = 1.0) -> np.ndarray:
@@ -68,7 +67,7 @@ class SchlatherModel:
     free_param_names = ("log_range", "logit_smoothness")
 
     @classmethod
-    def from_free_params(cls, free_params, **kwargs) -> "SchlatherModel":
+    def from_free_params(cls, free_params, **kwargs) -> SchlatherModel:
         log_range, logit_smoothness = free_params
         range_ = np.exp(log_range)
         # squash logit_smoothness (-inf, inf) -> smoothness in (0, 2]

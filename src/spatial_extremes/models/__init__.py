@@ -1,5 +1,5 @@
-from .smith import SmithModel
-from .schlather import SchlatherModel
 from .brownresnick import BrownResnickModel
+from .schlather import SchlatherModel
+from .smith import SmithModel
 
-__all__ = ["SmithModel", "SchlatherModel", "BrownResnickModel"]
+__all__ = ["BrownResnickModel", "SchlatherModel", "SmithModel"]

@@ -3,9 +3,9 @@ import pandas as pd
 import pytest
 
 from spatial_extremes.fitting import fit_pairwise_likelihood
-from spatial_extremes.models.smith import SmithModel
-from spatial_extremes.models.schlather import SchlatherModel
 from spatial_extremes.models.brownresnick import BrownResnickModel
+from spatial_extremes.models.schlather import SchlatherModel
+from spatial_extremes.models.smith import SmithModel
 
 
 def _frechet_frame(sims, n_sites):

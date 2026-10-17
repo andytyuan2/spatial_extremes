@@ -33,7 +33,7 @@ def test_to_unit_frechet_is_uniform_on_frechet_scale():
     z = res.to_unit_frechet(x)
     # unit Frechet CDF is exp(-1/z); transformed values should be ~Uniform(0,1)
     u = np.exp(-1.0 / z)
-    stat, pval = stats.kstest(u, "uniform")
+    _, pval = stats.kstest(u, "uniform")
     assert pval > 0.01
 
 

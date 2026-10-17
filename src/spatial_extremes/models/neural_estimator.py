@@ -220,11 +220,12 @@ class NeuralEstimator:
                     "RMSE shape": np.sqrt(np.mean((e[:, 1] - truth[:len(e), 1]) ** 2)),
                     "MAE theta(h_med)": np.mean(np.abs(th - th_true[:len(th)]))}
 
-        rows = [rep("neural (all %d)" % n_test, est, th_nn)]
+        rows = [rep(f"neural (all {n_test})", est, th_nn)]
         out = {"seconds_per_fit_nn": t_nn}
         if n_compare:
             cls = _MODELS[self.model]
-            from spatial_extremes import BrownResnickModel as BR, SchlatherModel as SC
+            from spatial_extremes import BrownResnickModel as BR
+            from spatial_extremes import SchlatherModel as SC
             mcls = BR if self.model == "brownresnick" else SC
             est_pl, t0 = [], time.time()
             for z in data[:n_compare]:
@@ -235,8 +236,8 @@ class NeuralEstimator:
             out["seconds_per_fit_pl"] = (time.time() - t0) / n_compare
             est_pl = np.array(est_pl)
             th_pl = np.array([self.extremal_coefficient(p, h_med) for p in est_pl])
-            rows.append(rep("neural (same %d)" % n_compare, est[:n_compare], th_nn[:n_compare]))
-            rows.append(rep("pairwise lik. (same %d)" % n_compare, est_pl, th_pl))
+            rows.append(rep(f"neural (same {n_compare})", est[:n_compare], th_nn[:n_compare]))
+            rows.append(rep(f"pairwise lik. (same {n_compare})", est_pl, th_pl))
         out["table"] = pd.DataFrame(rows).set_index("method")
         if verbose:
             print(out["table"].round(3).to_string())
@@ -249,7 +250,7 @@ class NeuralEstimator:
         joblib.dump(self, path)
 
     @staticmethod
-    def load(path) -> "NeuralEstimator":
+    def load(path) -> NeuralEstimator:
         return joblib.load(path)
 
 

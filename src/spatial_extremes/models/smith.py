@@ -37,7 +37,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ._shared import de_haan_bivariate_cdf, de_haan_bivariate_logpdf, de_haan_extremal_coefficient
+from ._shared import (
+    de_haan_bivariate_cdf,
+    de_haan_bivariate_logpdf,
+    de_haan_extremal_coefficient,
+)
 
 try:
     import geopandas as gpd
@@ -74,7 +78,7 @@ class SmithModel:
     free_param_names = ("log_l11", "l21", "log_l22")
 
     @classmethod
-    def from_free_params(cls, free_params, **kwargs) -> "SmithModel":
+    def from_free_params(cls, free_params, **kwargs) -> SmithModel:
         log_l11, l21, log_l22 = free_params
         l11, l22 = np.exp(log_l11), np.exp(log_l22)
         L = np.array([[l11, 0.0], [l21, l22]])

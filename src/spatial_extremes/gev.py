@@ -144,7 +144,6 @@ def _numerical_se(fun, p: np.ndarray, eps: float = 1e-4) -> np.ndarray:
     """Standard errors from the inverse of a numerically-differenced Hessian."""
     k = len(p)
     hess = np.zeros((k, k))
-    f0 = fun(p)
     for i in range(k):
         for j in range(k):
             pp = p.copy(); pp[i] += eps; pp[j] += eps
