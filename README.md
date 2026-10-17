@@ -16,20 +16,19 @@ Optional dependencies are grouped by feature:
 
 ```bash
 pip install "spatial-extremes[geo]"      # GeoDataFrame helper
-pip install "spatial-extremes[polars]"   # Polars input support
+pip install "spatial-extremes[pandas]"   # legacy pandas DataFrame compatibility
 pip install "spatial-extremes[neural]"   # amortized neural estimator
-pip install "spatial-extremes[data]"     # Parquet I/O for example data
 pip install "spatial-extremes[plotting]" # Matplotlib plots
 pip install "spatial-extremes[maps]"     # Geographic plots over web map tiles
 pip install "spatial-extremes[dev]"      # tests, linting, and builds
 ```
 
-The core dependencies are NumPy, SciPy, and pandas. `geo` installs
-GeoPandas for `SmithModel.simulate_geo`; `polars` enables Polars input
-for tabular routines; and `neural` installs joblib and scikit-learn for
-the optional estimator in `spatial_extremes.neural_estimator`. The
-`data` extra installs PyArrow, which pandas needs to read or write the
-example Parquet files. `plotting` installs Matplotlib for optional field and
+The core dependencies are NumPy, SciPy, and Polars. `pandas` enables legacy
+pandas DataFrame input for tabular routines; core tabular operations and
+results use Polars. `geo` installs GeoPandas for `SmithModel.simulate_geo`;
+and `neural` installs joblib and scikit-learn for
+the optional estimator in `spatial_extremes.neural_estimator`. Polars handles
+CSV and Parquet I/O without a separate data extra. `plotting` installs Matplotlib for optional field and
 dependence plots; `maps` installs GeoPandas and Contextily for geographic
 field plots over web map tiles. These extras are not needed by the core
 fitting and simulation APIs.
@@ -37,14 +36,25 @@ fitting and simulation APIs.
 For a local development install with every optional feature:
 
 ```bash
-pip install -e ".[geo,polars,neural,data,plotting,maps,dev]"
+pip install -e ".[geo,pandas,neural,plotting,maps,dev]"
 ```
+
+## Publishing
+
+Releases published on GitHub are uploaded to PyPI by
+`.github/workflows/publish.yml` using PyPI trusted publishing (OIDC), without
+a stored API token. Before the first release, configure a trusted publisher
+for this GitHub repository on PyPI, using the `Publish to PyPI` workflow and
+the `pypi` GitHub Actions environment. Create a GitHub release tag matching
+the project version as `v<version>` (for example, `v0.1.0`); the workflow
+checks this tag, runs the tests, builds both distributions, checks their
+metadata, and publishes them. Published versions cannot be reused.
 
 ## Package features
 
 - `spatial_extremes.gev`: univariate GEV maximum-likelihood fitting
   (`fit_gev`, `fit_gev_by_site`) and probability-integral transformation
-  to unit-Frechet margins.
+  to unit-Frechet margins. Table results use Polars.
 - `spatial_extremes.models`: Smith, Schlather, and Brown-Resnick model
   simulation, bivariate CDFs and log-densities, and theoretical
   extremal coefficients.
@@ -165,10 +175,9 @@ misspecification exercise, not a test of recovery of a true max-stable
 range or variogram.
 
 The generator and example files are in the repository checkout, not
-included as installed package resources. To regenerate the Parquet files,
-install the `data` extra and run `python gen_extremes.py` from the
-`Dummy_data` directory. The output files are written to the current
-working directory.
+included as installed package resources. Polars is a core dependency, so run
+`python gen_extremes.py` from the `Dummy_data` directory to regenerate the
+Parquet files. The output files are written to the current working directory.
 
 ## Validation and scope
 

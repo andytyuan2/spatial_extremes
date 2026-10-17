@@ -12,13 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from scipy import optimize, stats
-
-try:
-    import polars as pl
-except ImportError:  # polars is optional
-    pl = None
 
 
 @dataclass
@@ -165,25 +160,29 @@ def fit_gev_by_site(
     *,
     site_col: str | None = None,
     value_col: str | None = None,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Fit a GEV independently to each site's block maxima.
 
-    Accepts a wide pandas or polars DataFrame with one site per column,
-    or a long DataFrame by specifying both ``site_col`` and ``value_col``.
+    Accepts a wide Polars DataFrame with one site per column, or a long
+    Polars DataFrame by specifying both ``site_col`` and ``value_col``.
+    Pandas DataFrames are also accepted when pandas is installed.
     In long format, each row is one site's block maximum for one period;
     other columns (such as year and coordinates) are ignored.
 
-    Returns a tidy pandas DataFrame, one row per site, with fitted
+    Returns a tidy Polars DataFrame, one row per site, with fitted
     parameters and diagnostics -- convenient for joining onto a
     GeoDataFrame of site coordinates afterwards. Missing values are
     ignored independently for each site.
     """
-    if pl is not None and isinstance(df, pl.DataFrame):
-        pdf = pd.DataFrame(df.to_dict(as_series=False))
-    elif isinstance(df, pd.DataFrame):
-        pdf = df
+    if isinstance(df, pl.DataFrame):
+        frame = df
+    elif type(df).__module__.split(".", maxsplit=1)[0] == "pandas":
+        frame = pl.DataFrame({
+            str(column): df[column].to_numpy()
+            for column in df.columns
+        })
     else:
-        raise TypeError("df must be a pandas or polars DataFrame")
+        raise TypeError("df must be a Polars DataFrame or a pandas DataFrame")
 
     if (site_col is None) != (value_col is None):
         raise ValueError("site_col and value_col must be provided together")
@@ -192,21 +191,35 @@ def fit_gev_by_site(
     if site_col is not None:
         if site_cols is not None:
             raise ValueError("site_cols applies only to wide-format data")
-        missing = {site_col, value_col} - set(pdf.columns)
+        missing = {site_col, value_col} - set(frame.columns)
         if missing:
             raise ValueError(f"Missing required columns: {sorted(missing)}")
-        if pdf[site_col].isna().any():
+        if frame.get_column(site_col).null_count():
             raise ValueError(f"{site_col!r} contains missing site identifiers")
-        groups = pdf.groupby(site_col, sort=False, observed=True)[value_col]
-        for site, values in groups:
-            res = fit_gev(values.to_numpy())
+        grouped = (
+            frame.lazy()
+            .select(site_col, pl.col(value_col).cast(pl.Float64))
+            .group_by(site_col, maintain_order=True)
+            .agg(pl.col(value_col))
+            .collect()
+        )
+        for site, values in zip(
+            grouped.get_column(site_col).to_list(),
+            grouped.get_column(value_col).to_list(),
+        ):
+            res = fit_gev(np.asarray(values, dtype=float))
             rows.append({"site": site, **res.as_dict()})
     else:
-        cols = site_cols if site_cols is not None else list(pdf.columns)
-        missing = set(cols) - set(pdf.columns)
+        cols = site_cols if site_cols is not None else frame.columns
+        missing = set(cols) - set(frame.columns)
         if missing:
             raise ValueError(f"Unknown site columns: {sorted(missing)}")
+        values_by_site = (
+            frame.lazy()
+            .select(pl.col(cols).cast(pl.Float64))
+            .collect()
+        )
         for col in cols:
-            res = fit_gev(pdf[col].to_numpy())
+            res = fit_gev(values_by_site.get_column(col).to_numpy())
             rows.append({"site": col, **res.as_dict()})
-    return pd.DataFrame(rows)
+    return pl.DataFrame(rows)

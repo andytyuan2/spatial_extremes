@@ -1,6 +1,7 @@
-import numpy as np, pandas as pd
-from scipy.stats import norm, genextreme
+import numpy as np
+import polars as pl
 from scipy.spatial.distance import cdist
+from scipy.stats import genextreme, norm
 
 rng = np.random.default_rng(42)
 n_sites, n_years, start = 200, 50, 1975
@@ -28,21 +29,24 @@ mu_t = mu[:, None] + trend*(years[None, :] - years.mean())
 # scipy genextreme uses c = -xi
 X = genextreme.ppf(U, c=-xi[:, None], loc=mu_t, scale=sigma[:, None])
 
-stations = pd.DataFrame({
+stations = pl.DataFrame({
     "station_id": [f"S{i:03d}" for i in range(n_sites)],
     "lon": lon, "lat": lat, "elevation_m": elev,
     "true_mu": mu, "true_sigma": sigma, "true_xi": xi, "true_trend": trend,
 })
-obs = pd.DataFrame({
-    "station_id": np.repeat(stations.station_id.values, n_years),
+annual_max = X.ravel().copy()
+annual_max[rng.random(annual_max.size) < 0.02] = np.nan
+obs = pl.DataFrame({
+    "station_id": np.repeat(stations.get_column("station_id").to_numpy(), n_years),
     "year": np.tile(years, n_sites),
     "lon": np.repeat(lon, n_years), "lat": np.repeat(lat, n_years),
     "elevation_m": np.repeat(elev, n_years),
-    "annual_max_mm": X.ravel(),
+    "annual_max_mm": annual_max,
 })
-# Realism: ~2% missing values
-obs.loc[rng.random(len(obs)) < 0.02, "annual_max_mm"] = np.nan
-
-obs.to_parquet("extremes_observations.parquet", index=False)
-stations.to_parquet("extremes_stations_truth.parquet", index=False)
-print(obs.shape, obs.annual_max_mm.describe().round(2).to_dict())
+obs.write_parquet("extremes_observations.parquet")
+stations.write_parquet("extremes_stations_truth.parquet")
+print(obs.shape, {
+    "count": int(np.isfinite(annual_max).sum()),
+    "mean": round(float(np.nanmean(annual_max)), 2),
+    "std": round(float(np.nanstd(annual_max)), 2),
+})

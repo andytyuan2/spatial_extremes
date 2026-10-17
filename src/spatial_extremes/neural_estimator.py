@@ -52,12 +52,13 @@ CAVEATS
 from __future__ import annotations
 
 import argparse
+import csv
 import time
 from dataclasses import dataclass
 
 import joblib
 import numpy as np
-import pandas as pd
+import polars as pl
 from joblib import Parallel, delayed
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
@@ -231,7 +232,7 @@ class NeuralEstimator:
             mcls = BR if self.model == "brownresnick" else SC
             est_pl, t0 = [], time.time()
             for z in data[:n_compare]:
-                res = fit_pairwise_likelihood(mcls, pd.DataFrame(z), self.coords,
+                res = fit_pairwise_likelihood(mcls, z, self.coords,
                                               x0_free=np.array([np.log(self.L / 4), 0.0]))
                 m = res.model
                 est_pl.append([m.range_, getattr(m, cls[1])])
@@ -240,9 +241,11 @@ class NeuralEstimator:
             th_pl = np.array([self.extremal_coefficient(p, h_med) for p in est_pl])
             rows.append(rep(f"neural (same {n_compare})", est[:n_compare], th_nn[:n_compare]))
             rows.append(rep(f"pairwise lik. (same {n_compare})", est_pl, th_pl))
-        out["table"] = pd.DataFrame(rows).set_index("method")
+        out["table"] = pl.DataFrame(rows)
         if verbose:
-            print(out["table"].round(3).to_string())
+            print(out["table"].with_columns(
+                pl.exclude("method").round(3)
+            ))
             print(f"time per dataset: neural {t_nn * 1e3:.2f} ms" +
                   (f", pairwise likelihood {out['seconds_per_fit_pl']:.1f} s" if n_compare else ""))
         return out
@@ -272,7 +275,11 @@ if __name__ == "__main__":
     a = ap.parse_args()
 
     if a.coords_csv:
-        c = pd.read_csv(a.coords_csv)[["x", "y"]].to_numpy()
+        with open(a.coords_csv, newline="", encoding="utf-8") as coords_file:
+            reader = csv.DictReader(coords_file)
+            if reader.fieldnames is None or not {"x", "y"}.issubset(reader.fieldnames):
+                raise ValueError("coords CSV must contain 'x' and 'y' columns")
+            c = np.array([[float(row["x"]), float(row["y"])] for row in reader])
     else:
         c = np.random.default_rng(1).uniform(0, 10, (20, 2))
 

@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 
 from spatial_extremes.fitting import fit_pairwise_likelihood
@@ -9,7 +9,7 @@ from spatial_extremes.models.smith import SmithModel
 
 
 def _frechet_frame(sims, n_sites):
-    return pd.DataFrame(sims, columns=[f"s{i}" for i in range(n_sites)])
+    return pl.DataFrame(sims, schema=[f"s{i}" for i in range(n_sites)], orient="row")
 
 
 def test_fit_smith_recovers_extremal_coefficients():
@@ -106,14 +106,13 @@ def test_pairwise_fit_uses_jointly_observed_values():
 
 def test_pairwise_fit_rejects_nonpositive_frechet_values():
     coords = np.array([[0.0, 0.0], [1.0, 0.0]])
-    data = pd.DataFrame({"a": [1.0, 0.0], "b": [1.2, 1.4]})
+    data = pl.DataFrame({"a": [1.0, 0.0], "b": [1.2, 1.4]})
 
     with pytest.raises(ValueError, match="strictly positive"):
         fit_pairwise_likelihood(SmithModel, data, coords)
 
 
 def test_pairwise_fit_accepts_polars_with_null_values():
-    pl = pytest.importorskip("polars")
     rng = np.random.default_rng(106)
     coords = np.array([[0.0, 0.0], [1.0, 0.0]])
     sims = SmithModel(cov=np.eye(2)).simulate(coords, n_reps=100, rng=rng)
@@ -126,3 +125,17 @@ def test_pairwise_fit_accepts_polars_with_null_values():
 
     assert fit.n_pairs_used == 1
     assert fit.n_replicates == 100
+
+
+def test_pairwise_fit_accepts_legacy_pandas_input():
+    pd = pytest.importorskip("pandas")
+    coords = np.array([[0.0, 0.0], [1.0, 0.0]])
+    data = pd.DataFrame({
+        "a": [1.0, 2.0, 1.5, 3.0],
+        "b": [1.2, 1.8, 2.0, 2.5],
+    })
+
+    fit = fit_pairwise_likelihood(SmithModel, data, coords)
+
+    assert fit.n_pairs_used == 1
+    assert fit.n_replicates == 4

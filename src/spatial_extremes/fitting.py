@@ -20,20 +20,20 @@ from dataclasses import dataclass
 from itertools import combinations
 
 import numpy as np
+import polars as pl
 from scipy import optimize
-
-try:
-    import polars as pl
-except ImportError:
-    pl = None
 
 
 def _to_numpy(df):
-    if pl is not None and isinstance(df, pl.DataFrame):
+    if isinstance(df, pl.DataFrame):
         return df.to_numpy()
     if isinstance(df, np.ndarray):
         return df
-    return df.to_numpy()
+    if type(df).__module__.split(".", maxsplit=1)[0] == "pandas":
+        return df.to_numpy()
+    raise TypeError(
+        "frechet_df must be a Polars DataFrame, pandas DataFrame, or NumPy array"
+    )
 
 
 @dataclass
@@ -63,10 +63,11 @@ def fit_pairwise_likelihood(
     model_class : SmithModel, SchlatherModel, or BrownResnickModel (the
         class itself, not an instance -- it's constructed internally at
         each optimizer step via `model_class.from_free_params(...)`).
-    frechet_df : pandas or polars DataFrame, or 2-D NumPy array. Columns
-        are sites with unit-Frechet margins; rows are independent
-        replicates. Missing values are allowed and each pair uses only
-        rows observed at both sites.
+    frechet_df : Polars DataFrame, 2-D NumPy array, or (with the ``pandas``
+        extra installed) pandas DataFrame. Columns are sites with
+        unit-Frechet margins; rows are independent replicates. Missing
+        values are allowed and each pair uses only rows observed at both
+        sites.
     coords : (D, 2) array_like of site coordinates, same order as columns.
     x0_free : optional starting point in free-parameter space; defaults
         to a vector of zeros (which is a reasonable "unit scale, no

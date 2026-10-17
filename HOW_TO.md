@@ -44,7 +44,7 @@ development tools too:
 python -m pip install -e ".[neural,dev]"
 ```
 
-Optional groups are `geo`, `polars`, `neural`, `data`, `plotting`, `maps`, and
+Optional groups are `geo`, `pandas`, `neural`, `plotting`, `maps`, and
 `dev`; see the installation section of the [README](./README.md). Install
 `plotting` if you want to create Matplotlib figures:
 
@@ -67,19 +67,24 @@ The regular workflow uses a **wide** table:
 - a separate coordinate array with one row per site, in the same order as
   those columns.
 
-For this example, assume `annual_maxima` is a pandas DataFrame and
+For this example, assume `annual_maxima` is a Polars DataFrame and
 `coordinates` is a NumPy array with columns `x` and `y`. Coordinates should be
 projected into a planar coordinate system, not longitude and latitude degrees.
 
 ```python
 import numpy as np
-import pandas as pd
+import polars as pl
 
-# Rows are years; columns are stations.
-annual_maxima = pd.read_csv("annual_maxima.csv", index_col="year")
+# Scan lazily and collect once before fitting.
+annual_maxima = pl.scan_csv("annual_maxima.csv").drop("year").collect()
 
 # The coordinate rows MUST be in the same order as annual_maxima.columns.
-coordinates = pd.read_csv("station_coordinates.csv")[["x", "y"]].to_numpy()
+coordinates = (
+    pl.scan_csv("station_coordinates.csv")
+    .select("x", "y")
+    .collect()
+    .to_numpy()
+)
 ```
 
 Make the ordering explicit and check it before fitting:
@@ -95,16 +100,18 @@ assert coordinates.shape == (len(site_names), 2)
 from spatial_extremes import fit_gev
 
 gev_fits = {
-    site: fit_gev(annual_maxima[site].to_numpy())
+    site: fit_gev(annual_maxima.get_column(site))
     for site in site_names
 }
 
 # Convert each site's observations to the unit-Frechet scale.
 # Missing values remain missing and are allowed in the pairwise fit below.
-frechet = pd.DataFrame({
-    site: gev_fits[site].to_unit_frechet(annual_maxima[site].to_numpy())
+frechet = pl.DataFrame({
+    site: gev_fits[site].to_unit_frechet(
+        annual_maxima.get_column(site).to_numpy()
+    )
     for site in site_names
-}, index=annual_maxima.index)
+})
 ```
 
 `fit_gev` drops missing values, rejects infinite values, and requires at least
@@ -318,7 +325,7 @@ dependence, a trend, changing measurement practice, or a changing climate
 regime, address it before interpreting a stationary fit. The package does not
 model those features automatically.
 
-`fit_gev_by_site` also accepts long-format pandas or Polars data for marginal
+`fit_gev_by_site` also accepts long-format Polars data for marginal
 fits. For example:
 
 ```python

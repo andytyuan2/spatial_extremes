@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 from scipy import stats
 
@@ -39,13 +39,14 @@ def test_to_unit_frechet_is_uniform_on_frechet_scale():
 
 def test_fit_gev_by_site_multiple_columns():
     rng = np.random.default_rng(3)
-    df = pd.DataFrame({
+    df = pl.DataFrame({
         "site_a": stats.genextreme.rvs(c=0.0, loc=0.0, scale=1.0, size=500, random_state=rng),
         "site_b": stats.genextreme.rvs(c=-0.2, loc=5.0, scale=2.0, size=500, random_state=rng),
     })
     result = fit_gev_by_site(df)
-    assert set(result["site"]) == {"site_a", "site_b"}
-    assert (result["converged"]).all()
+    assert isinstance(result, pl.DataFrame)
+    assert set(result.get_column("site")) == {"site_a", "site_b"}
+    assert result.get_column("converged").all()
 
 
 def test_fit_gev_by_site_long_format_with_missing_values():
@@ -54,7 +55,7 @@ def test_fit_gev_by_site_long_format_with_missing_values():
     b = stats.gumbel_r.rvs(loc=4.0, scale=1.5, size=80, random_state=rng)
     a[::10] = np.nan
     b[::8] = np.nan
-    df = pd.DataFrame({
+    df = pl.DataFrame({
         "station_id": np.repeat(["a", "b"], 80),
         "year": np.tile(np.arange(80), 2),
         "annual_max": np.concatenate([a, b]),
@@ -63,13 +64,12 @@ def test_fit_gev_by_site_long_format_with_missing_values():
 
     result = fit_gev_by_site(df, site_col="station_id", value_col="annual_max")
 
-    assert result["site"].tolist() == ["a", "b"]
-    assert result["n_obs"].tolist() == [72, 70]
-    assert result["converged"].all()
+    assert result.get_column("site").to_list() == ["a", "b"]
+    assert result.get_column("n_obs").to_list() == [72, 70]
+    assert result.get_column("converged").all()
 
 
 def test_fit_gev_by_site_accepts_polars_long_table():
-    pl = pytest.importorskip("polars")
     rng = np.random.default_rng(5)
     x = stats.gumbel_r.rvs(loc=2.0, scale=1.5, size=40, random_state=rng)
     x[::9] = np.nan
@@ -81,8 +81,21 @@ def test_fit_gev_by_site_accepts_polars_long_table():
 
     result = fit_gev_by_site(df, site_col="station_id", value_col="annual_max")
 
-    assert result.loc[0, "site"] == "site_a"
-    assert result.loc[0, "n_obs"] == np.isfinite(x).sum()
+    assert result.item(0, "site") == "site_a"
+    assert result.item(0, "n_obs") == np.isfinite(x).sum()
+
+
+def test_fit_gev_by_site_accepts_legacy_pandas_and_returns_polars():
+    pd = pytest.importorskip("pandas")
+    rng = np.random.default_rng(6)
+    df = pd.DataFrame({
+        "site_a": stats.gumbel_r.rvs(loc=0.0, scale=1.0, size=50, random_state=rng),
+    })
+
+    result = fit_gev_by_site(df)
+
+    assert isinstance(result, pl.DataFrame)
+    assert result.item(0, "site") == "site_a"
 
 
 def test_fit_gev_rejects_infinite_observations():

@@ -4,7 +4,7 @@ from __future__ import annotations
 from itertools import combinations
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from .dependence import _to_numpy, fmadogram
 
@@ -227,9 +227,10 @@ def plot_extremal_dependence(
 
     Parameters
     ----------
-    frechet_df : pandas or polars DataFrame
-        Rows are independent replicates and columns are sites. Values must be
-        positive unit-Frechet observations; incomplete rows are dropped.
+    frechet_df : Polars DataFrame, or (with the ``pandas`` extra installed)
+        pandas DataFrame. Rows are independent replicates and columns are
+        sites. Values must be positive unit-Frechet observations; incomplete
+        rows are dropped.
     coords : array_like, shape (n_sites, 2)
         Projected coordinates in the same column order as ``frechet_df``.
     model : fitted model, optional
@@ -269,22 +270,29 @@ def plot_extremal_dependence(
     if complete.shape[0] == 0:
         raise ValueError("frechet_df has no complete finite rows")
 
-    complete_df = pd.DataFrame(complete, columns=columns)
+    complete_df = pl.DataFrame(complete, schema=columns, orient="row")
     pairs = fmadogram(complete_df, coords)
+    pair_indices = list(combinations(range(len(coords)), 2))
     distances = np.array([
         np.linalg.norm(coords[i] - coords[j])
-        for i, j in combinations(range(len(coords)), 2)
+        for i, j in pair_indices
     ])
-    pairs["distance"] = distances
-    pairs["dist_bin"] = pd.cut(pairs["distance"], bins=int(n_bins))
+    bin_edges = np.linspace(distances.min(), distances.max(), int(n_bins) + 1)
+    bin_ids = np.digitize(distances, bin_edges[1:-1], right=False)
+    pairs = pairs.with_columns(
+        pl.Series("distance", distances),
+        pl.Series("dist_bin", bin_ids),
+    )
     binned = (
-        pairs.groupby("dist_bin", observed=True)
+        pairs.lazy()
+        .group_by("dist_bin")
         .agg(
-            mean_distance=("distance", "mean"),
-            mean_fmadogram=("fmadogram", "mean"),
-            mean_extremal_coefficient=("extremal_coefficient", "mean"),
+            pl.col("distance").mean().alias("mean_distance"),
+            pl.col("fmadogram").mean().alias("mean_fmadogram"),
+            pl.col("extremal_coefficient").mean().alias("mean_extremal_coefficient"),
         )
-        .reset_index(drop=True)
+        .sort("dist_bin")
+        .collect()
     )
     y_column = (
         "mean_extremal_coefficient"
@@ -299,34 +307,43 @@ def plot_extremal_dependence(
         fig = ax.figure
 
     ax.plot(
-        binned["mean_distance"],
-        binned[y_column],
+        binned.get_column("mean_distance").to_numpy(),
+        binned.get_column(y_column).to_numpy(),
         marker="o",
         linestyle="none",
         label="Empirical",
     )
     if model is not None:
-        pairs["model_extremal_coefficient"] = [
-            model.extremal_coefficient(coords[i] - coords[j])
-            for i, j in combinations(range(len(coords)), 2)
-        ]
+        pairs = pairs.with_columns(
+            pl.Series(
+                "model_extremal_coefficient",
+                [
+                    model.extremal_coefficient(coords[i] - coords[j])
+                    for i, j in pair_indices
+                ],
+            )
+        )
         if statistic == "fmadogram":
-            theta = pairs["model_extremal_coefficient"]
-            pairs["model_fmadogram"] = (theta - 1) / (2 * (theta + 1))
+            theta = pairs.get_column("model_extremal_coefficient")
+            pairs = pairs.with_columns(
+                ((theta - 1) / (2 * (theta + 1))).alias("model_fmadogram")
+            )
             model_column = "model_fmadogram"
         else:
             model_column = "model_extremal_coefficient"
         theoretical = (
-            pairs.groupby("dist_bin", observed=True)
+            pairs.lazy()
+            .group_by("dist_bin")
             .agg(
-                mean_distance=("distance", "mean"),
-                model_value=(model_column, "mean"),
+                pl.col("distance").mean().alias("mean_distance"),
+                pl.col(model_column).mean().alias("model_value"),
             )
-            .reset_index(drop=True)
+            .sort("dist_bin")
+            .collect()
         )
         ax.plot(
-            theoretical["mean_distance"],
-            theoretical["model_value"],
+            theoretical.get_column("mean_distance").to_numpy(),
+            theoretical.get_column("model_value").to_numpy(),
             label=type(model).__name__,
         )
 

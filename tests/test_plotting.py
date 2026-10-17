@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 
 matplotlib = pytest.importorskip("matplotlib")
@@ -28,12 +28,11 @@ def test_plot_spatial_field_returns_figure_and_colored_sites():
 
 def test_plot_extremal_dependence_includes_empirical_and_model_curves():
     coords = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 2.0]])
-    values = pd.DataFrame([
-        [1.0, 2.0, 3.0],
-        [2.0, 2.5, 1.5],
-        [4.0, 3.0, 5.0],
-        [3.0, 4.0, 2.0],
-    ])
+    values = pl.DataFrame({
+        "site_a": [1.0, 2.0, 4.0, 3.0],
+        "site_b": [2.0, 2.5, 3.0, 4.0],
+        "site_c": [3.0, 1.5, 5.0, 2.0],
+    })
     model = BrownResnickModel(range_=2.0, alpha=1.0)
 
     fig, ax = plot_extremal_dependence(
@@ -55,11 +54,11 @@ def test_plot_extremal_dependence_includes_empirical_and_model_curves():
 
 def test_plot_extremal_dependence_drops_incomplete_rows():
     coords = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 2.0]])
-    values = pd.DataFrame([
-        [1.0, 2.0, 3.0],
-        [2.0, np.nan, 1.5],
-        [4.0, 3.0, 5.0],
-    ])
+    values = pl.DataFrame({
+        "site_a": [1.0, 2.0, 4.0],
+        "site_b": [2.0, np.nan, 3.0],
+        "site_c": [3.0, 1.5, 5.0],
+    })
 
     fig, ax = plot_extremal_dependence(
         values,
@@ -116,7 +115,7 @@ def test_plot_spatial_field_validates_inputs(values, coords, message):
 def test_plot_extremal_dependence_rejects_nonpositive_values():
     with pytest.raises(ValueError, match="positive"):
         plot_extremal_dependence(
-            pd.DataFrame([[1.0, 0.0], [2.0, 3.0]]),
+            pl.DataFrame({"a": [1.0, 2.0], "b": [0.0, 3.0]}),
             np.array([[0.0, 0.0], [1.0, 0.0]]),
         )
 

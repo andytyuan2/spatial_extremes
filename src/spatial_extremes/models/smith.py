@@ -219,8 +219,8 @@ class SmithModel:
             )
         coords = np.column_stack([gdf.geometry.x.to_numpy(), gdf.geometry.y.to_numpy()])
         sims = self.simulate(coords, n_reps=n_reps, rng=rng)
-        import pandas as pd
-        sim_cols = pd.DataFrame(
-            sims.T, columns=[f"{value_prefix}_{r}" for r in range(n_reps)], index=gdf.index
-        )
-        return gpd.GeoDataFrame(pd.concat([gdf, sim_cols], axis=1), crs=gdf.crs)
+        simulation_columns = {
+            f"{value_prefix}_{replicate}": sims[:, replicate]
+            for replicate in range(n_reps)
+        }
+        return gdf.assign(**simulation_columns)
