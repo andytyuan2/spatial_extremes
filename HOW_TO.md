@@ -44,8 +44,19 @@ development tools too:
 python -m pip install -e ".[neural,dev]"
 ```
 
-Optional groups are `geo`, `polars`, `neural`, `data`, and `dev`; see the
-installation section of the [README](./README.md).
+Optional groups are `geo`, `polars`, `neural`, `data`, `plotting`, `maps`, and
+`dev`; see the installation section of the [README](./README.md). Install
+`plotting` if you want to create Matplotlib figures:
+
+```bash
+python -m pip install "spatial-extremes[plotting]"
+```
+
+For geographic field plots over an online tile map, install the `maps` extra:
+
+```bash
+python -m pip install "spatial-extremes[maps]"
+```
 
 ### Prepare the data
 
@@ -159,6 +170,29 @@ The table summarizes empirical extremal coefficients by distance. Compare
 the broad pattern with the fitted model's theoretical dependence and with
 scientific expectations. It is a diagnostic summary, not a formal model
 adequacy test.
+For extreme-value data this plots an F-madogram or extremal-coefficient
+dependence curve, rather than the classical semivariogram often used for
+Gaussian spatial processes.
+
+Plot empirical extremal dependence and optionally overlay the fitted model:
+
+```python
+from spatial_extremes.plotting import plot_extremal_dependence
+
+fig, ax = plot_extremal_dependence(
+    frechet,
+    coordinates,
+    model=fit.model,
+    statistic="extremal_coefficient",  # or "fmadogram"
+    n_bins=10,
+)
+fig.savefig("extremal_dependence.png", dpi=200, bbox_inches="tight")
+```
+
+Incomplete rows are dropped before the empirical F-madogram calculation.
+The model curve averages theoretical values over site pairs in each distance
+bin, preserving directional differences for anisotropic models such as Smith.
+The figure is returned and is not automatically displayed.
 
 ### Simulate a field
 
@@ -179,6 +213,58 @@ print(simulated.shape)  # (20, number of sites)
 The range uses the same distance units as `coordinates`. A range of
 `100_000` therefore means 100,000 units in the coordinate reference system
 used for the sites.
+
+Plot one simulated replicate at its site locations:
+
+```python
+from spatial_extremes.plotting import plot_spatial_field
+
+fig, ax = plot_spatial_field(
+    simulated[0],
+    coordinates,
+    title="Simulated unit-Frechet field",
+    colorbar_label="Unit-Frechet value",
+)
+fig.savefig("spatial_field.png", dpi=200, bbox_inches="tight")
+```
+
+This is a colored scatter plot at the observed sites, not a spatial
+interpolation to a continuous raster. Both plotting helpers require
+Matplotlib, installed through the `plotting` extra.
+
+### Overlay a spatial field on a map
+
+If you have geographic coordinates, use `plot_spatial_field_map`. Supply
+coordinates in **longitude, latitude** order, in degrees (WGS 84 / EPSG:4326).
+The map helper reprojects them to Web Mercator for display and retrieves
+OpenStreetMap tiles, so an internet connection is required:
+
+```python
+from spatial_extremes.plotting import plot_spatial_field_map
+
+lon_lat = [
+    [-123.12, 49.28],  # longitude, latitude for site 1
+    [-122.33, 47.61],  # longitude, latitude for site 2
+    [-121.89, 37.33],  # longitude, latitude for site 3
+]
+site_values = [2.1, 3.7, 1.4]
+
+fig, ax = plot_spatial_field_map(
+    site_values,
+    lon_lat,
+    title="Observed spatial field",
+    colorbar_label="Field value",
+)
+fig.savefig("field_on_map.png", dpi=200, bbox_inches="tight")
+```
+
+The coordinates and values must have the same site ordering. This shows
+colored markers at the measurement locations; it does not interpolate
+between them. Tile providers control availability, terms of use, and any
+attribution. For fitting spatial models or calculating distances, continue
+to use coordinates projected into an appropriate local metric CRS; the
+Web-Mercator conversion here is only for display. The display latitude must
+be within approximately -85.05 to 85.05 degrees.
 
 ### When to use the neural estimator
 

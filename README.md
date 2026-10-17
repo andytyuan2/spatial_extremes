@@ -19,6 +19,8 @@ pip install "spatial-extremes[geo]"      # GeoDataFrame helper
 pip install "spatial-extremes[polars]"   # Polars input support
 pip install "spatial-extremes[neural]"   # amortized neural estimator
 pip install "spatial-extremes[data]"     # Parquet I/O for example data
+pip install "spatial-extremes[plotting]" # Matplotlib plots
+pip install "spatial-extremes[maps]"     # Geographic plots over web map tiles
 pip install "spatial-extremes[dev]"      # tests, linting, and builds
 ```
 
@@ -27,13 +29,15 @@ GeoPandas for `SmithModel.simulate_geo`; `polars` enables Polars input
 for tabular routines; and `neural` installs joblib and scikit-learn for
 the optional estimator in `spatial_extremes.neural_estimator`. The
 `data` extra installs PyArrow, which pandas needs to read or write the
-example Parquet files. These extras are not needed by the core fitting
-and simulation APIs.
+example Parquet files. `plotting` installs Matplotlib for optional field and
+dependence plots; `maps` installs GeoPandas and Contextily for geographic
+field plots over web map tiles. These extras are not needed by the core
+fitting and simulation APIs.
 
 For a local development install with every optional feature:
 
 ```bash
-pip install -e ".[geo,polars,neural,data,dev]"
+pip install -e ".[geo,polars,neural,data,plotting,maps,dev]"
 ```
 
 ## Package features
@@ -46,6 +50,9 @@ pip install -e ".[geo,polars,neural,data,dev]"
   extremal coefficients.
 - `spatial_extremes.dependence`: empirical F-madogram and
   madogram-based extremal-coefficient summaries.
+- `spatial_extremes.plotting`: optional Matplotlib plots of spatial fields
+  and distance-binned extremal dependence; its map helper additionally
+  requires the `maps` extra and an internet connection for tiles.
 - `spatial_extremes.fitting`: pairwise composite-likelihood estimation
   of spatial dependence parameters.
 - `spatial_extremes.neural_estimator`: optional amortized estimator for
