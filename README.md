@@ -1,205 +1,166 @@
 # spatial-extremes
 
-Python tools for simulating and fitting spatial max-stable models and
-for analyzing block maxima. The implementation follows published
-extreme-value formulas; it is not a port of R's `SpatialExtremes`.
+`spatial-extremes` is a Python package for working with spatial extremes. It
+provides tools to fit generalized extreme-value (GEV) distributions to block
+maxima, model spatial dependence with max-stable processes, simulate spatial
+fields, and summarize extremal dependence.
+
+The package is intended for researchers and practitioners analyzing
+replicated extremes observed at multiple spatial locations. It implements
+extreme-value models and methods in Python; it is not a port of R's
+`SpatialExtremes`.
+
+## Features
+
+- Fit stationary GEV distributions to individual series or sites.
+- Transform observations to unit-Frechet margins for spatial analysis.
+- Simulate Smith, Schlather, and Brown-Resnick max-stable models.
+- Fit spatial dependence parameters using pairwise composite likelihood.
+- Calculate empirical F-madograms and extremal-coefficient summaries.
+- Optionally plot spatial fields and distance-binned dependence.
+- Optionally use an amortized neural estimator for isotropic
+  Brown-Resnick and Schlather models.
 
 ## Installation
 
-Install the core package and its required dependencies:
+Requires Python 3.10 or later. Install the core package with:
 
 ```bash
-pip install spatial-extremes
+python -m pip install spatial-extremes
 ```
 
-Optional dependencies are grouped by feature:
+Optional dependencies are available as extras:
+
+| Extra | Adds |
+| --- | --- |
+| `geo` | GeoPandas support for `SmithModel.simulate_geo` |
+| `pandas` | pandas DataFrame input for tabular routines |
+| `neural` | Neural estimator dependencies (joblib and scikit-learn) |
+| `plotting` | Matplotlib plots |
+| `maps` | Geographic plots over online map tiles |
+
+Install an extra, or combine several extras, like this:
 
 ```bash
-pip install "spatial-extremes[geo]"      # GeoDataFrame helper
-pip install "spatial-extremes[pandas]"   # legacy pandas DataFrame compatibility
-pip install "spatial-extremes[neural]"   # amortized neural estimator
-pip install "spatial-extremes[plotting]" # Matplotlib plots
-pip install "spatial-extremes[maps]"     # Geographic plots over web map tiles
-pip install "spatial-extremes[dev]"      # tests, linting, and builds
+python -m pip install "spatial-extremes[plotting]"
+python -m pip install "spatial-extremes[geo,plotting,maps]"
 ```
 
-The core dependencies are NumPy, SciPy, and Polars. `pandas` enables legacy
-pandas DataFrame input for tabular routines; core tabular operations and
-results use Polars. `geo` installs GeoPandas for `SmithModel.simulate_geo`;
-and `neural` installs joblib and scikit-learn for
-the optional estimator in `spatial_extremes.neural_estimator`. Polars handles
-CSV and Parquet I/O without a separate data extra. `plotting` installs Matplotlib for optional field and
-dependence plots; `maps` installs GeoPandas and Contextily for geographic
-field plots over web map tiles. These extras are not needed by the core
-fitting and simulation APIs.
+The core package uses NumPy, SciPy, and Polars. Tabular routines accept and
+return Polars data; NumPy arrays are also supported by relevant functions.
+The `maps` plotting helper retrieves web map tiles and therefore requires an
+internet connection.
 
-For a local development install with every optional feature:
+## Quick start: simulate a spatial field
 
-```bash
-pip install -e ".[geo,pandas,neural,plotting,maps,dev]"
-```
-
-## Publishing
-
-Releases published on GitHub are uploaded to PyPI by
-`.github/workflows/publish.yml` using PyPI trusted publishing (OIDC), without
-a stored API token. Before the first release, configure a trusted publisher
-for this GitHub repository on PyPI, using the `Publish to PyPI` workflow and
-the `pypi` GitHub Actions environment. Create a GitHub release tag matching
-the project version as `v<version>` (for example, `v0.1.0`); the workflow
-checks this tag, runs the tests, builds both distributions, checks their
-metadata, and publishes them. Published versions cannot be reused.
-
-## Package features
-
-- `spatial_extremes.gev`: univariate GEV maximum-likelihood fitting
-  (`fit_gev`, `fit_gev_by_site`) and probability-integral transformation
-  to unit-Frechet margins. Table results use Polars.
-- `spatial_extremes.models`: Smith, Schlather, and Brown-Resnick model
-  simulation, bivariate CDFs and log-densities, and theoretical
-  extremal coefficients.
-- `spatial_extremes.dependence`: empirical F-madogram and
-  madogram-based extremal-coefficient summaries.
-- `spatial_extremes.plotting`: optional Matplotlib plots of spatial fields
-  and distance-binned extremal dependence; its map helper additionally
-  requires the `maps` extra and an internet connection for tiles.
-- `spatial_extremes.fitting`: pairwise composite-likelihood estimation
-  of spatial dependence parameters.
-- `spatial_extremes.neural_estimator`: optional amortized estimator for
-  isotropic Brown-Resnick and Schlather models. It is imported separately
-  so the core package does not require scikit-learn or joblib.
-
-## Typical workflow
-
-For block maxima, fit a GEV at each site, transform the observations to
-unit-Frechet margins, then fit or inspect the spatial dependence. Marginal
-fits can be made from wide tables (one column per site) or long tables:
+Model coordinates must be two-dimensional Euclidean coordinates, expressed
+in consistent linear units. The simulator returns unit-Frechet observations
+with shape `(number of replicates, number of sites)`.
 
 ```python
-from spatial_extremes import fit_gev_by_site
+import numpy as np
+from spatial_extremes.models import BrownResnickModel
 
-gev_fits = fit_gev_by_site(
-    observations,
-    site_col="station_id",
-    value_col="annual_max_mm",
+coordinates = np.array([
+    [0.0, 0.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 1.0],
+])
+
+model = BrownResnickModel(range_=1.0, alpha=1.0)
+fields = model.simulate(
+    coordinates,
+    n_reps=100,
+    rng=np.random.default_rng(42),
 )
+
+print(fields.shape)  # (100, 4)
 ```
 
-For pairwise spatial fitting, pass a wide table of unit-Frechet values:
-columns must match the order of the coordinate rows, and coordinates
-must have shape `(number_of_sites, 2)`. Each site pair uses only
-replicates observed at both sites. Missing values are therefore
-permitted, but the likelihood is valid only when the missingness
-mechanism is ignorable for the dependence being estimated. Infinite
-values and non-positive observed unit-Frechet values are invalid.
+## Typical analysis workflow
 
-## Statistical assumptions and limitations
+For observed block maxima, a common workflow is:
 
-### Margins and replicates
+1. Store each independent replicate (for example, each year) as a row and
+   each site as a column.
+2. Fit a GEV distribution to each site's block maxima using `fit_gev` or
+   `fit_gev_by_site`.
+3. Transform each site's observations to unit-Frechet margins with
+   `GEVResult.to_unit_frechet`.
+4. Fit a spatial dependence model with `fit_pairwise_likelihood`, or
+   inspect empirical dependence with `fmadogram`,
+   `empirical_extremal_coefficient`, or `binned_extremal_coefficient`.
 
-- `fit_gev` treats the observations at one site as independent,
-  identically distributed block maxima from a stationary GEV
-  distribution. It requires at least 10 non-missing observations; this
-  is a practical guard, not a guarantee of reliable tail estimates.
-  Reported standard errors are approximations from a numerically
-  differentiated likelihood Hessian.
-- `fit_gev_by_site` fits a separate stationary GEV at each site. It does
-  not model time trends, covariates, or spatial pooling of marginal
-  parameters.
-- `GEVResult.to_unit_frechet` uses the fitted GEV CDF and clips
-  probabilities to avoid infinities. The resulting margins are
-  estimated, not known, unit-Frechet margins.
-- The pairwise likelihood treats rows as independent replicates of one
-  stationary spatial process. Its objective is a composite likelihood,
-  not the full joint likelihood. It reports the optimizer result but
-  does not provide composite-likelihood standard errors or account for
-  uncertainty from the preceding marginal fits.
-- `max_pairs` randomly selects a fixed subset of eligible site pairs
-  before optimization. This reduces computation but makes the result
-  dependent on the chosen subset and random seed.
+When fitting spatial dependence, the coordinate rows must match the site
+columns in order. Use projected coordinates rather than longitude and
+latitude degrees. See the [How-to Guide](https://github.com/andytyuan2/spatial_extremes/blob/main/HOW_TO.md) for a complete
+data-preparation and fitting example.
 
-### Spatial coordinates and model validity
+## Available models and methods
 
-- Model coordinates are two-dimensional Euclidean coordinates in
-  consistent linear units. The routines do not reproject coordinates.
-  Do not use longitude/latitude degrees as if they were distances;
-  project the locations first. The reported distance and model range
-  use the same coordinate units.
-- Smith covariance matrices must be positive definite. Simulation uses
-  a finite storm-center window expanded by `buffer_factor`; the finite
-  window approximates contributions from storms outside the window.
-  `max_points` is a hard cap and can stop simulation before the normal
-  stopping condition is reached.
-- Schlather's correlation function must describe a valid stationary
-  Gaussian correlation model. The default is powered exponential; a
-  custom `correlation_fn` is used by both the bivariate formulas and the
-  simulator. The resulting site correlation matrix must be positive
-  semidefinite or simulation's Cholesky factorization will fail. Its
-  extremal coefficient cannot exceed `1 + sqrt(2)/2` (about 1.707), so
-  this model cannot attain independence at large separation.
-- Brown-Resnick's default power variogram is
-  `gamma(h) = (|h| / range_)**alpha`, with positive `range_` and
-  `0 < alpha <= 2`. A custom variogram must be conditionally
-  negative-definite and zero at zero lag to define a valid model; the
-  package does not validate these properties for a user-supplied
-  function.
-- Schlather and Brown-Resnick simulation truncate an infinite Poisson
-  construction using a probabilistic stopping bound; `max_points` is
-  also a hard cap. Thus, unlike an exact infinite construction, results
-  can have a small truncation error.
+The `spatial_extremes` package exports `SmithModel`, `SchlatherModel`, and
+`BrownResnickModel`. Each model provides bivariate distribution and
+dependence methods, as well as spatial simulation. Pairwise fitting is
+available through `fit_pairwise_likelihood`.
 
-The F-madogram and extremal-coefficient diagnostics expect positive,
-complete unit-Frechet observations and do not filter missing values.
-They are descriptive summaries, not fitted-model goodness-of-fit tests.
+Other top-level functions include:
 
-### Optional neural estimator
+- `fit_gev` and `fit_gev_by_site` for stationary marginal GEV fits.
+- `fmadogram`, `empirical_extremal_coefficient`, and
+  `binned_extremal_coefficient` for empirical dependence summaries.
 
-The neural estimator targets isotropic Brown-Resnick or Schlather models
-and must be trained for the same station layout and replicate count used
-at prediction time. It learns under a built-in parameter prior, so its
-predictions are prior-dependent point estimates. `predict_bootstrap`
-resamples replicate rows to describe resampling variability; it is not a
-posterior distribution or a substitute for calibrated uncertainty
-estimation.
+Optional plotting functions are in `spatial_extremes.plotting`. The optional
+neural estimator is imported separately from
+`spatial_extremes.neural_estimator`.
 
-## Supplied example data
+## Assumptions and limitations
 
-`Dummy_data/gen_extremes.py` creates long-format station/year
-observations and station-level truth metadata. Its observations come
-from a Gaussian copula with an exponential spatial correlation,
-station-specific covariate-dependent GEV parameters, a time trend in GEV
-location, and randomly missing values. This is **not** a max-stable
-process and its margins are not stationary over time. Fitting the
-package's stationary max-stable models to this data is a workflow or
-misspecification exercise, not a test of recovery of a true max-stable
-range or variogram.
+- GEV fits assume independent, identically distributed observations from a
+  stationary distribution at each site. They do not model trends, covariates,
+  or spatial pooling of marginal parameters.
+- Pairwise likelihood assumes independent replicates from a stationary
+  spatial process. It is a composite likelihood; uncertainty from the
+  marginal fits is not propagated, and composite-likelihood standard errors
+  are not provided.
+- Missing values are supported by the pairwise fit, which uses replicates
+  observed at both sites in each pair. The missingness mechanism must be
+  ignorable for the dependence being estimated. Empirical madogram and
+  extremal-coefficient summaries require complete, positive unit-Frechet
+  observations.
+- Coordinates are not reprojected by the modeling or fitting routines.
+  Distances and model ranges use the units of the supplied coordinates.
+- Simulation approximates an infinite max-stable construction using a
+  finite storm-center window or a probabilistic stopping bound, depending
+  on the model. A maximum-points cap can also stop simulation early, so
+  simulated values can have a small truncation error.
+- Model fit and successful optimizer convergence do not establish that the
+  assumptions or the selected model are appropriate for a dataset.
 
-The generator and example files are in the repository checkout, not
-included as installed package resources. Polars is a core dependency, so run
-`python gen_extremes.py` from the `Dummy_data` directory to regenerate the
-Parquet files. The output files are written to the current working directory.
+See [Technical Details](https://github.com/andytyuan2/spatial_extremes/blob/main/TECHNICAL_DETAILS.md) for model equations,
+statistical assumptions, and implementation details.
 
-## Validation and scope
+## Example data
 
-See [Technical Details](./TECHNICAL_DETAILS.md) for the model equations
-and the precise assumptions behind fitting and simulation.
-For a step-by-step introduction and a more advanced workflow, see the
-[How-to Guide](./HOW_TO.md).
-
-The test suite checks selected model properties, including simulated
-margins, Monte Carlo agreement with bivariate CDFs, and recovery of
-dependence summaries on simulated data. These tests exercise specific
-configurations; they are not a proof of correctness for every parameter,
-coordinate layout, or custom function.
-
-Marginal GEV parameters are currently fitted separately from spatial
-dependence (a two-step workflow). Joint marginal/dependence fitting,
-conditional simulation, and non-stationary variogram parameterizations
-are not implemented.
+The repository includes example data and a generator in
+[`Dummy_data/`](https://github.com/andytyuan2/spatial_extremes/tree/main/Dummy_data).
+The generated observations use a Gaussian copula with covariate-dependent
+GEV margins, a time trend, and randomly missing values. They are not
+generated from a max-stable process, so they are suitable for exploring
+workflows and model misspecification, not for validating recovery of known
+max-stable parameters. The generator and data files are available in the
+repository, not as installed package resources.
 
 ## References
 
-The model formulas are based on Smith (1990), Schlather (2002),
-Kabluchko, Schlather & de Haan (2009), and Padoan, Ribatet & Sisson
-(2010). The implementation is independently written rather than copied
+The implementation draws on the extreme-value methods of Smith (1990),
+Schlather (2002), Kabluchko, Schlather & de Haan (2009), and Padoan, Ribatet
+& Sisson (2010). The package is independently implemented and is not copied
 from the GPL-licensed R `SpatialExtremes` source.
+
+## Documentation and support
+
+- [How-to Guide](https://github.com/andytyuan2/spatial_extremes/blob/main/HOW_TO.md): end-to-end examples and practical guidance.
+- [Technical Details](https://github.com/andytyuan2/spatial_extremes/blob/main/TECHNICAL_DETAILS.md): formulas and assumptions.
+- [Releases](https://github.com/andytyuan2/spatial_extremes/releases)
+- [Report an issue](https://github.com/andytyuan2/spatial_extremes/issues)
