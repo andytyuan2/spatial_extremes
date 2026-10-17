@@ -24,9 +24,9 @@ apart. This is a documented property of the Schlather model itself
 (see Schlather 2002; Davison, Padoan & Ribatet 2012 Stat. Science
 review), not a simulation artifact.
 
-Bivariate CDF and its partial derivatives (needed for the pairwise
-likelihood) were derived symbolically with sympy and cross-checked
-against finite differences of the CDF; see fitting.py / project notes.
+The bivariate CDF and its partial derivatives define the density used
+by pairwise likelihood. A finite-difference check of the density is
+included in the test suite.
 """
 from __future__ import annotations
 
@@ -140,22 +140,23 @@ class SchlatherModel:
         max_points : int
             Hard cap on Poisson points per replicate.
         practical_bound : float
-            Standard-normal z-score treated as an effectively-impossible
-            upper bound (P(Z > 10) ~ 1e-23) for the early-stopping rule.
-            This makes the truncation a probabilistic, not exact,
-            approximation -- unlike Smith's model, W(s) here is
-            unbounded, so no exact finite stopping rule exists. Verified
-            empirically against the closed-form bivariate CDF in tests.
+            Standard-normal threshold used in the probabilistic
+            early-stopping bound. Gaussian spectral weights are
+            unbounded, so this is not an exact stopping rule.
+            `max_points` can also truncate the Poisson sequence.
         """
         rng = rng or np.random.default_rng()
         coords = np.asarray(coords, dtype=float)
         D = coords.shape[0]
 
-        # site-to-site correlation matrix, then its Cholesky factor for
-        # fast iid-Gaussian-process sampling per Poisson point
+        # Use the configured correlation function for both simulation
+        # and the bivariate model. Cholesky factorization requires a
+        # positive-semidefinite correlation matrix for these sites.
         diffs = coords[:, None, :] - coords[None, :, :]
-        dists = np.linalg.norm(diffs, axis=-1)
-        R = np.exp(-((dists / self.range_) ** self.smoothness))
+        R = np.array([
+            [self._rho(diffs[i, j]) for j in range(D)]
+            for i in range(D)
+        ])
         R = R + np.eye(D) * 1e-10  # numerical PD safety margin
         chol = np.linalg.cholesky(R)
 

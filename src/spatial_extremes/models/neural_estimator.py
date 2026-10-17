@@ -62,8 +62,6 @@ from joblib import Parallel, delayed
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 
-# The package directory in the repo is `src/spatial-extremes` (hyphen), which
-# Python cannot import; rename it to `spatial_extremes` (see packaging notes).
 from spatial_extremes import BrownResnickModel, SchlatherModel, fit_pairwise_likelihood
 
 _MODELS = {

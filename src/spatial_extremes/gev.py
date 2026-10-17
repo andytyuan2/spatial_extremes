@@ -1,11 +1,11 @@
 """
 Univariate Generalized Extreme Value (GEV) fitting.
 
-This is the marginal building block for max-stable processes: every
-location in a max-stable random field has GEV-distributed marginals.
-Fit each site's block maxima independently here, then use the fitted
-(mu, sigma, xi) to transform to unit Frechet margins before modeling
-spatial dependence (see `transform.py`).
+This module fits stationary GEV distributions to block maxima, usually
+one distribution per site. The fitted CDF can transform observations to
+unit-Frechet margins before spatial-dependence analysis. This two-step
+workflow does not propagate marginal-parameter uncertainty into the
+dependence fit.
 """
 from __future__ import annotations
 
@@ -83,14 +83,18 @@ def _neg_log_lik(params: np.ndarray, x: np.ndarray) -> float:
 
 
 def fit_gev(x, x0: tuple[float, float, float] | None = None) -> GEVResult:
-    """Fit a GEV distribution to a 1-D array of block maxima via MLE.
+    """Fit a stationary GEV distribution to 1-D block maxima by MLE.
 
     Parameters
     ----------
     x : array-like
-        Block maxima (e.g. annual maxima at one site).
+        Independent block maxima assumed to follow one GEV distribution.
+        Missing values (NaN) are dropped; infinities are rejected.
     x0 : optional initial guess (loc, scale, shape). If None, a
-        method-of-moments-ish guess is derived from the data.
+        approximate method-of-moments guess is derived from the data.
+
+    At least 10 finite observations are required as a practical minimum;
+    this does not guarantee stable tail estimates.
 
     Returns
     -------

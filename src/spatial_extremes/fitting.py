@@ -1,12 +1,11 @@
 """
 Pairwise (composite) likelihood fitting.
 
-The full joint density of a max-stable process is analytically
-intractable beyond a handful of sites, so parameters are estimated by
-maximizing the sum of *pairwise* log-densities across all site pairs
-and replicates instead -- this is the standard approach in the
-spatial-extremes literature (Padoan, Ribatet & Sisson 2010) and is
-what R's `SpatialExtremes::fitmaxstab` does under the hood.
+The full joint density of a max-stable process is generally difficult
+to evaluate for many sites. This module estimates dependence parameters
+by maximizing the sum of bivariate log-densities over site pairs and
+replicates, a composite-likelihood approach used in the spatial-extremes
+literature (Padoan, Ribatet & Sisson 2010).
 
 Works with any model exposing:
   - `bivariate_logpdf(z1, z2, h)` (vectorized over replicates)
@@ -64,8 +63,10 @@ def fit_pairwise_likelihood(
     model_class : SmithModel, SchlatherModel, or BrownResnickModel (the
         class itself, not an instance -- it's constructed internally at
         each optimizer step via `model_class.from_free_params(...)`).
-    frechet_df : pandas or polars DataFrame, columns = sites (unit-Frechet
-        margins already), rows = replicates.
+    frechet_df : pandas or polars DataFrame, or 2-D NumPy array. Columns
+        are sites with unit-Frechet margins; rows are independent
+        replicates. Missing values are allowed and each pair uses only
+        rows observed at both sites.
     coords : (D, 2) array_like of site coordinates, same order as columns.
     x0_free : optional starting point in free-parameter space; defaults
         to a vector of zeros (which is a reasonable "unit scale, no
@@ -74,6 +75,13 @@ def fit_pairwise_likelihood(
         many site pairs per optimizer evaluation (fixed once, not
         resampled per iteration) to keep fitting tractable. `None` uses
         all pairs.
+
+    Notes
+    -----
+    The method assumes independent replicates from a stationary spatial
+    model and ignorable missingness. The fit does not estimate marginal
+    parameters or provide composite-likelihood uncertainty estimates.
+    A successful optimizer termination does not establish model adequacy.
     """
     values = np.asarray(_to_numpy(frechet_df), dtype=float)
     if values.ndim != 2:

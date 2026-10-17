@@ -15,9 +15,8 @@ extreme-value identity:
 
     f(z1, z2) = exp(-V) * (V1 * V2 - V12)
 
-where V1 = dV/dz1, V2 = dV/dz2, V12 = d^2V/dz1 dz2. Verified
-symbolically with sympy against finite-difference derivatives of the
-CDF (see project notes) -- closed forms below are:
+where V1 = dV/dz1, V2 = dV/dz2, and V12 = d^2V/(dz1 dz2). The
+derivatives used by the bivariate density are:
 
     V1  = -Phi(w) / z1^2
     V2  = -Phi(v) / z2^2

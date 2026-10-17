@@ -32,9 +32,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-geo = ["geopandas>=0.14", "shapely>=2.0"]
+geo = ["geopandas>=0.14"]
 polars = ["polars>=0.20"]
 neural = ["joblib>=1.3", "scikit-learn>=1.3"]
+data = ["pyarrow>=14.0"]
 dev = [
     "pytest",
     "pytest-cov",

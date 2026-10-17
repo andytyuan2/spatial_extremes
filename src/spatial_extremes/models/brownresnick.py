@@ -118,11 +118,10 @@ class BrownResnickModel:
         batch_size : int
             Number of Poisson points generated per vectorized batch.
         practical_bound : float
-            Standard-deviations-equivalent treated as an
-            effectively-impossible upper bound (P(Z > 6) ~ 1e-9) for
-            the early-stopping rule -- a probabilistic, not exact,
-            truncation (same pattern as schlather.py). Verified
-            empirically against the closed-form bivariate CDF in tests.
+            Standard-deviations-equivalent threshold used in the
+            probabilistic early-stopping bound. Gaussian spectral
+            weights are unbounded, so this is not exact; `max_points`
+            can also truncate the Poisson sequence.
         """
         rng = rng or np.random.default_rng()
         coords = np.asarray(coords, dtype=float)

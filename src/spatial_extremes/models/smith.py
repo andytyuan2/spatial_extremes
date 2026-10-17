@@ -23,9 +23,9 @@ Simulation strategy (standard truncated point-process algorithm):
   3. Because phi(.; Sigma) is bounded above by phi(0; Sigma), once
      xi_i * phi(0; Sigma) falls below the current running max at
      every site, no later point (i > i_stop) can ever change the
-     max. This gives an exact, finite stopping rule for a fixed
-     realization (not an approximation of the algorithm itself --
-     the only approximation is the finite buffer around the domain).
+     max. This is an exact stopping rule if reached; `max_points` can
+     instead truncate the point sequence. The finite storm-center window
+     also approximates contributions from centers outside the window.
 
 This is a from-scratch reimplementation of the published algorithm
 (Schlather 2002 discusses the general recipe for Smith/Schlather
@@ -135,7 +135,8 @@ class SmithModel:
         n_reps : int
             Number of independent replicates (e.g. independent storms/years).
         max_points : int
-            Safety cap on Poisson points per replicate.
+            Hard cap on Poisson points per replicate. If reached before
+            the stopping condition, the returned field is truncated.
 
         Returns
         -------
@@ -182,10 +183,8 @@ class SmithModel:
                 np.maximum(running_max, contrib, out=running_max)
             out[r] = running_max
 
-        # Correct for the finite simulation window: points outside the
-        # buffered box contribute negligibly for well-chosen buffer, but
-        # we rescale by (area / area) = 1 here -- kept explicit as a hook
-        # in case you want importance-sampling corrections later.
+        # The finite center window is not corrected; increase buffer_factor
+        # when contributions from outside the window are material.
         return out
 
     def simulate_geo(

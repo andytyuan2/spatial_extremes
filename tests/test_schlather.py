@@ -50,6 +50,26 @@ def test_simulate_matches_closed_form_bivariate_cdf():
     )
 
 
+def test_simulator_uses_custom_correlation_function():
+    def custom_correlation(h, range_, smoothness):
+        return np.exp(-2 * np.linalg.norm(h) / range_)
+
+    rng = np.random.default_rng(12)
+    model = SchlatherModel(
+        range_=2.5, smoothness=1.0, correlation_fn=custom_correlation
+    )
+    h = np.array([1.5, 0.5])
+    sims = model.simulate(
+        np.array([[0.0, 0.0], h]), n_reps=8000, rng=rng
+    )
+
+    z1, z2 = 1.5, 2.0
+    empirical = np.mean((sims[:, 0] <= z1) & (sims[:, 1] <= z2))
+    theoretical = model.bivariate_cdf(z1, z2, h)
+
+    assert abs(empirical - theoretical) < 0.04
+
+
 def test_bivariate_logpdf_matches_finite_difference_of_cdf():
     """Cross-check the closed-form density against a numerical derivative
     of bivariate_cdf, independent of the sympy derivation used to write it."""
