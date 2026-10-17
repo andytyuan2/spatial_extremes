@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "spatial-extremes"
-version = "0.1.1"
+version = "0.1.11"
 description = "Tools for simulating and fitting max-stable spatial extreme-value models"
 readme = "README.md"
 requires-python = ">=3.10"
