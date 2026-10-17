@@ -176,7 +176,7 @@ Let $\epsilon(s)$ be a mean-zero Gaussian process with stationary
 increments and semivariogram
 
 $$
-\gamma(h)=\frac12\operatorname{Var}\{\epsilon(s+h)-\epsilon(s)\}.
+\gamma(h)=\frac12\mathrm{Var}\{\epsilon(s+h)-\epsilon(s)\}.
 $$
 
 The Brown-Resnick process is represented as
@@ -187,7 +187,7 @@ $$
 
 where $o$ is an arbitrary anchor and the $\epsilon_i$ are independent
 copies of the Gaussian process. Because
-$\operatorname{Var}(\epsilon(s)-\epsilon(o))=2\gamma(s-o)$, the
+$\mathrm{Var}(\epsilon(s)-\epsilon(o))=2\gamma(s-o)$, the
 spectral weight has mean one:
 
 $$
@@ -214,7 +214,7 @@ simulation, the covariance of the anchored Gaussian field is assembled
 from the variogram as
 
 $$
-\operatorname{Cov}\{\epsilon(s_i),\epsilon(s_j)\}
+\mathrm{Cov}\{\epsilon(s_i),\epsilon(s_j)\}
 =\gamma(s_i-o)+\gamma(s_j-o)-\gamma(s_i-s_j).
 $$
 
@@ -268,7 +268,7 @@ log-density for that site pair and replicate. The fitting routine
 minimizes the negative pairwise composite log-likelihood
 
 $$
-\operatorname{NCL}(\vartheta)
+\mathrm{NCL}(\vartheta)
 =-\sum_{i<j}\sum_{t\in\mathcal{T}_{ij}}
 \ell_{ij,t}(\vartheta),
 $$

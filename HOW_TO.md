@@ -310,8 +310,8 @@ Let $Y_{t,j}$ denote the block maximum for replicate $t$ at site $j$. The
 package's standard table convention is:
 
 $$
-\text{rows} = \text{independent replicates}, \qquad
-\text{columns} = \text{sites}.
+\mathrm{rows} = \mathrm{independent\ replicates}, \qquad
+\mathrm{columns} = \mathrm{sites}.
 $$
 
 The coordinate array must have shape $(D,2)$ for $D$ sites. Coordinate row
