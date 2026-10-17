@@ -26,10 +26,11 @@ extreme-value models and methods in Python; it is not a port of R's
 
 ## Installation
 
-Requires Python 3.10 or later. Install the core package with:
+Requires Python 3.10 or later. Install the package directly from this
+GitHub repository with:
 
 ```bash
-python -m pip install spatial-extremes
+python -m pip install "spatial-extremes @ git+https://github.com/andytyuan2/spatial_extremes.git"
 ```
 
 Optional dependencies are available as extras:
@@ -43,13 +44,17 @@ Optional dependencies are available as extras:
 | `maps` | Geographic plots over online map tiles |
 | `bayesian` | PyMC for hierarchical Bayesian margin inference |
 
-Install an extra, or combine several extras, like this:
+Install an extra directly from the repository, or combine several extras:
 
 ```bash
-python -m pip install "spatial-extremes[plotting]"
-python -m pip install "spatial-extremes[geo,plotting,maps]"
-python -m pip install "spatial-extremes[bayesian]"
+python -m pip install "spatial-extremes[plotting] @ git+https://github.com/andytyuan2/spatial_extremes.git"
+python -m pip install "spatial-extremes[geo,plotting,maps] @ git+https://github.com/andytyuan2/spatial_extremes.git"
+python -m pip install "spatial-extremes[bayesian] @ git+https://github.com/andytyuan2/spatial_extremes.git"
 ```
+
+For a local editable installation, clone the
+[GitHub repository](https://github.com/andytyuan2/spatial_extremes) and run
+`python -m pip install -e ".[plotting]"` from the checkout root.
 
 The core package uses NumPy, SciPy, and Polars. Tabular routines accept and
 return Polars data; NumPy arrays are also supported by relevant functions.
@@ -61,19 +66,22 @@ internet connection.
 The repository includes a set of Jupyter notebooks using the bundled
 synthetic rainfall data and simulated max-stable fields:
 
-1. [Core workflow](./notebooks/spatial_extremes_walkthrough.ipynb): data
+1. [Core workflow](https://github.com/andytyuan2/spatial_extremes/blob/main/notebooks/spatial_extremes_walkthrough.ipynb): data
    preparation, stationary GEV margins, unit-Frechet transformation,
    dependence summaries, Brown-Resnick fitting, and simulation.
-2. [Spatial models and neural estimation](./notebooks/spatial_extremes_models_and_neural.ipynb):
+2. [Spatial models and neural estimation](https://github.com/andytyuan2/spatial_extremes/blob/main/notebooks/spatial_extremes_models_and_neural.ipynb):
    Smith, Schlather, and Brown-Resnick models, pairwise fitting, and the
    optional neural estimator for isotropic Brown-Resnick and Schlather models.
-3. [Bayesian workflows](./notebooks/spatial_extremes_bayesian.ipynb):
+3. [Bayesian workflows](https://github.com/andytyuan2/spatial_extremes/blob/main/notebooks/spatial_extremes_bayesian.ipynb):
    curvature-adjusted Bayesian pairwise likelihood and the optional PyMC
    spatio-temporal hierarchical GEV margins model.
 
-Install the notebook dependencies from the repository root:
+Clone the repository, install the notebook dependencies in editable mode,
+and launch Jupyter:
 
 ```bash
+git clone https://github.com/andytyuan2/spatial_extremes.git
+cd spatial_extremes
 python -m pip install jupyter
 python -m pip install -e ".[plotting,neural,bayesian]"
 jupyter lab
