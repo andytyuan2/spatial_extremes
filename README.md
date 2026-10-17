@@ -39,17 +39,6 @@ For a local development install with every optional feature:
 pip install -e ".[geo,pandas,neural,plotting,maps,dev]"
 ```
 
-## Publishing
-
-Releases published on GitHub are uploaded to PyPI by
-`.github/workflows/publish.yml` using PyPI trusted publishing (OIDC), without
-a stored API token. Before the first release, configure a trusted publisher
-for this GitHub repository on PyPI, using the `Publish to PyPI` workflow and
-the `pypi` GitHub Actions environment. Create a GitHub release tag matching
-the project version as `v<version>` (for example, `v0.1.0`); the workflow
-checks this tag, runs the tests, builds both distributions, checks their
-metadata, and publishes them. Published versions cannot be reused.
-
 ## Package features
 
 - `spatial_extremes.gev`: univariate GEV maximum-likelihood fitting
