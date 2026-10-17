@@ -167,6 +167,8 @@ working directory.
 
 See [Technical Details](./TECHNICAL_DETAILS.md) for the model equations
 and the precise assumptions behind fitting and simulation.
+For a step-by-step introduction and a more advanced workflow, see the
+[How-to Guide](./HOW_TO.md).
 
 The test suite checks selected model properties, including simulated
 margins, Monte Carlo agreement with bivariate CDFs, and recovery of
