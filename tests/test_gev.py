@@ -1,8 +1,15 @@
+from types import SimpleNamespace
+
 import numpy as np
 import polars as pl
 import pytest
 from scipy import stats
 
+from spatial_extremes.bayesian.margins import (
+    BayesianGEVResult,
+    _validate_inputs,
+    fit_spatiotemporal_gev,
+)
 from spatial_extremes.gev import fit_gev, fit_gev_by_site
 
 
@@ -103,3 +110,70 @@ def test_fit_gev_rejects_infinite_observations():
     x[0] = np.inf
     with pytest.raises(ValueError, match="finite or missing"):
         fit_gev(x)
+
+
+def test_spatiotemporal_gev_rejects_irregular_times():
+    observations = np.ones((4, 2))
+    coordinates = np.array([[0.0, 0.0], [1.0, 0.0]])
+    with pytest.raises(ValueError, match="equally spaced"):
+        _validate_inputs(observations, coordinates, [1, 2, 4, 5], None)
+
+
+def test_spatiotemporal_gev_rejects_constant_covariates():
+    observations = np.ones((4, 2))
+    coordinates = np.array([[0.0, 0.0], [1.0, 0.0]])
+    with pytest.raises(ValueError, match="constant columns"):
+        _validate_inputs(observations, coordinates, None, np.ones((4, 1)))
+
+
+def test_bayesian_gev_return_levels_match_gumbel_quantiles():
+    posterior = {
+        "location": SimpleNamespace(values=np.zeros((1, 2, 3, 2))),
+        "scale": SimpleNamespace(values=np.array([[[2.0, 3.0], [2.0, 3.0]]])),
+        "shape": SimpleNamespace(values=np.zeros((1, 2, 2))),
+    }
+    result = BayesianGEVResult(
+        model=None,
+        inference_data=SimpleNamespace(posterior=posterior),
+        coordinates=np.zeros((2, 2)),
+        time_values=np.arange(3),
+        covariate_mean=np.empty(0),
+        covariate_scale=np.empty(0),
+    )
+
+    actual = result.posterior_return_levels(100, time_index=1)
+    expected = np.array([2.0, 3.0]) * -np.log(-np.log1p(-1 / 100))
+    assert actual.shape == (2, 2)
+    assert actual == pytest.approx(np.tile(expected, (2, 1)))
+
+
+def test_spatiotemporal_gev_samples_and_returns_marginal_levels():
+    pytest.importorskip("pymc")
+    rng = np.random.default_rng(7)
+    observations = rng.gumbel(loc=3, scale=1.2, size=(6, 3))
+    coordinates = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
+
+    with pytest.warns(UserWarning, match="does not model residual extremal dependence"):
+        result = fit_spatiotemporal_gev(
+            observations,
+            coordinates,
+            times=np.arange(2000, 2006),
+            covariates=np.arange(6, dtype=float)[:, None],
+            draws=8,
+            tune=8,
+            chains=1,
+            cores=1,
+            random_seed=8,
+            sample_kwargs={
+                "progressbar": False,
+                "compute_convergence_checks": False,
+            },
+        )
+
+    return_levels = result.posterior_return_levels([20, 50])
+    assert return_levels.shape == (8, 2, 3)
+    assert np.all(np.isfinite(return_levels))
+    assert result.inference_data.posterior.coords["time"].values.tolist() == list(
+        range(2000, 2006)
+    )
+    assert result.covariate_mean == pytest.approx([2.5])

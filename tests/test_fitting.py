@@ -2,7 +2,10 @@ import numpy as np
 import polars as pl
 import pytest
 
-from spatial_extremes.fitting import fit_pairwise_likelihood
+from spatial_extremes.fitting import (
+    fit_pairwise_likelihood,
+    sample_pairwise_likelihood_posterior,
+)
 from spatial_extremes.models.brownresnick import BrownResnickModel
 from spatial_extremes.models.schlather import SchlatherModel
 from spatial_extremes.models.smith import SmithModel
@@ -130,12 +133,58 @@ def test_pairwise_fit_accepts_polars_with_null_values():
 def test_pairwise_fit_accepts_legacy_pandas_input():
     pd = pytest.importorskip("pandas")
     coords = np.array([[0.0, 0.0], [1.0, 0.0]])
-    data = pd.DataFrame({
-        "a": [1.0, 2.0, 1.5, 3.0],
-        "b": [1.2, 1.8, 2.0, 2.5],
-    })
+    data = pd.DataFrame(
+        {
+            "a": [1.0, 2.0, 1.5, 3.0],
+            "b": [1.2, 1.8, 2.0, 2.5],
+        }
+    )
 
     fit = fit_pairwise_likelihood(SmithModel, data, coords)
 
     assert fit.n_pairs_used == 1
     assert fit.n_replicates == 4
+
+
+def test_curvature_adjusted_pairwise_posterior_samples():
+    rng = np.random.default_rng(107)
+    model = BrownResnickModel(range_=2.0, alpha=1.2)
+    coords = np.array(
+        [
+            [0.0, 0.0],
+            [1.5, 0.0],
+            [0.0, 1.5],
+            [1.5, 1.5],
+            [0.7, 2.2],
+        ]
+    )
+    data = _frechet_frame(model.simulate(coords, n_reps=250, rng=rng), len(coords))
+    prior_calls = []
+
+    with pytest.warns(UserWarning, match="approximate, local adjustment"):
+        posterior = sample_pairwise_likelihood_posterior(
+            BrownResnickModel,
+            data,
+            coords,
+            n_samples=12,
+            burn_in=8,
+            thin=2,
+            log_prior=lambda params: prior_calls.append(params.copy()) or 0.0,
+            rng=np.random.default_rng(108),
+        )
+
+    assert posterior.free_param_samples.shape == (12, 2)
+    assert posterior.log_posterior_samples.shape == (12,)
+    assert np.all(np.isfinite(posterior.free_param_samples))
+    assert 0 <= posterior.acceptance_rate <= 1
+    assert posterior.pairwise_fit.n_pairs_used == 10
+    assert np.all(np.isfinite(posterior.posterior_mean_free_params))
+    assert isinstance(posterior.posterior_mean_model, BrownResnickModel)
+    assert prior_calls
+
+    adjusted_curvature = (
+        posterior.curvature_adjustment.T
+        @ posterior.sensitivity_matrix
+        @ posterior.curvature_adjustment
+    )
+    assert adjusted_curvature == pytest.approx(posterior.curvature_matrix, rel=1e-5)

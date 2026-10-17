@@ -279,6 +279,84 @@ replicates and ignorable missingness, and the routine does not compute
 composite-likelihood standard errors. If `max_pairs` is set, the
 objective uses a fixed random subset of eligible pairs.
 
+## Curvature-adjusted Bayesian inference
+
+`sample_pairwise_likelihood_posterior` samples a Bayesian posterior based on
+the pairwise likelihood with the local curvature adjustment of Ribatet,
+Cooley & Davison (2012). Let $\hat\vartheta$ be the pairwise maximum
+likelihood estimate, $H$ the observed negative Hessian of the composite
+log-likelihood at that estimate, and $J$ the sum of outer products of the
+replicate-level composite scores. For a replicate $t$, its score is the sum
+of that replicate's score contributions over all included site pairs. The
+Godambe information is
+
+$$
+G=H J^{-1}H.
+$$
+
+The adjusted log-likelihood evaluates the original composite log-likelihood
+at a linearly transformed parameter,
+
+$$
+\ell_{\mathrm{adj}}(\vartheta)
+=\ell\left(\hat\vartheta+C(\vartheta-\hat\vartheta)\right),
+\qquad C^\mathsf{T}HC=G.
+$$
+
+The prior remains on the original free-parameter vector $\vartheta$.
+Independent zero-centered normal priors with standard deviation 2.5 are
+used by default; a `log_prior` callable can supply a different prior. The
+posterior is sampled by random-walk Metropolis with a proposal based on
+$G^{-1}$. Matrices $H$ and $J$ are estimated by finite differences and
+replicate-level scores. The routine requires positive-definite estimates
+and reports an error for weakly identified or insufficiently informed fits
+rather than silently regularizing them. This adjustment corrects local
+posterior curvature; it does not account for uncertainty in fitted margins,
+temporal dependence, or model misspecification.
+
+## Bayesian spatio-temporal GEV margins
+
+`fit_spatiotemporal_gev` (available after installing the `bayesian` extra)
+fits a hierarchical GEV model to block maxima arranged as a
+time-by-site matrix. Missing observations are omitted from the marginal
+likelihood. The location at time $t$ and site $s$ is
+
+$$
+\mu_{t,s}=\mu_0+\mathbf{x}_t^\mathsf{T}\boldsymbol\beta+u_{t,s},
+\qquad
+u_{t,s}=\phi u_{t-1,s}+\sqrt{1-\phi^2}\,\epsilon_{t,s},
+$$
+
+where the optional covariates are standardized and the innovations and
+initial field have a spatial Matérn-3/2 covariance. The log-scale has a
+separate static spatial Gaussian field. Shape has a static spatial field
+with a strongly regularized intercept and amplitude. Each field has its
+own covariance range. Sampling is performed with PyMC's NUTS sampler.
+Posterior return-level draws are provided by
+`BayesianGEVResult.posterior_return_levels`.
+
+Conditional on these latent marginal fields, observations are treated as
+independent. This borrows from hierarchical spatial/temporal GEV approaches
+such as Cooley, Nychka & Naveau (2007) and Sang & Gelfand (2009), but it does
+not include a residual max-stable or other extremal-dependence process.
+Consequently, marginal posterior inference and marginal return-level maps
+do not by themselves quantify joint-event risk. Probabilities of many sites
+exceeding thresholds together, simultaneous flooding, and other joint
+hazards may have severely understated uncertainty and should not be inferred
+from this model alone. Temporal spacing is assumed equal for the AR(1)
+recursion; irregularly spaced times are rejected.
+The spatial covariance matrices are dense, so factorization cost grows
+cubically with the number of sites.
+
+This model follows the hierarchical marginal-inference approach of Cooley,
+Nychka & Naveau, “Bayesian Spatial Modeling of Extreme Precipitation Return
+Levels” (2007, *Journal of the American Statistical Association* 102(479),
+824–840, [doi:10.1198/016214506000000780]), and the spatio-temporal
+hierarchical perspective of Sang & Gelfand, “Hierarchical modeling for
+extreme values observed over space and time” (2009, *Environmental and
+Ecological Statistics* 16, 407–426,
+[doi:10.1007/s10651-007-0078-0]).
+
 ## F-madogram diagnostic
 
 For unit-Frechet observations, transform $U(s)=\exp\{-1/Z(s)\}$, which
