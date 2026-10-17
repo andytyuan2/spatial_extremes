@@ -11,6 +11,42 @@ The examples assume you have block maxima observed at several spatial sites.
 For example, each row might be one year's maximum daily rainfall and each
 column one weather station.
 
+## Interactive notebooks
+
+For runnable, section-by-section examples, open the notebooks in the
+repository's `notebooks/` directory:
+
+1. [Core workflow](./notebooks/spatial_extremes_walkthrough.ipynb) uses the
+   bundled rainfall example to prepare data, fit stationary GEV margins,
+   transform to unit-Frechet, inspect empirical dependence, fit a
+   Brown-Resnick model, and simulate a field.
+2. [Spatial models and neural estimation](./notebooks/spatial_extremes_models_and_neural.ipynb)
+   compares Smith, Schlather, and Brown-Resnick simulations and pairwise
+   fits, then demonstrates the optional neural estimator for isotropic
+   Brown-Resnick and Schlather models.
+3. [Bayesian workflows](./notebooks/spatial_extremes_bayesian.ipynb)
+   demonstrates curvature-adjusted Bayesian pairwise likelihood and the
+   optional PyMC spatio-temporal hierarchical GEV margins model, including
+   marginal return-level draws.
+
+From the repository root, install the notebook runtime and optional package
+dependencies with:
+
+```bash
+python -m pip install jupyter
+python -m pip install -e ".[plotting,neural,bayesian]"
+jupyter lab
+```
+
+The `plotting` extra is used for figures, `neural` for the amortized
+estimator, and `bayesian` for the PyMC hierarchical GEV workflow. Notebooks
+use the repository's bundled synthetic data and simulated examples, not
+online data. Their reduced sampling/training settings are for teaching and
+execution checks, not scientific inference; in particular, the short PyMC
+run can report poor convergence diagnostics. See the relevant sections below
+and [Technical Details](./TECHNICAL_DETAILS.md) for assumptions and
+limitations.
+
 ## 1. Simple guide
 
 ### What the package does

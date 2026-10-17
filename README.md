@@ -56,6 +56,34 @@ return Polars data; NumPy arrays are also supported by relevant functions.
 The `maps` plotting helper retrieves web map tiles and therefore requires an
 internet connection.
 
+## Interactive walkthroughs
+
+The repository includes a set of Jupyter notebooks using the bundled
+synthetic rainfall data and simulated max-stable fields:
+
+1. [Core workflow](./notebooks/spatial_extremes_walkthrough.ipynb): data
+   preparation, stationary GEV margins, unit-Frechet transformation,
+   dependence summaries, Brown-Resnick fitting, and simulation.
+2. [Spatial models and neural estimation](./notebooks/spatial_extremes_models_and_neural.ipynb):
+   Smith, Schlather, and Brown-Resnick models, pairwise fitting, and the
+   optional neural estimator for isotropic Brown-Resnick and Schlather models.
+3. [Bayesian workflows](./notebooks/spatial_extremes_bayesian.ipynb):
+   curvature-adjusted Bayesian pairwise likelihood and the optional PyMC
+   spatio-temporal hierarchical GEV margins model.
+
+Install the notebook dependencies from the repository root:
+
+```bash
+python -m pip install jupyter
+python -m pip install -e ".[plotting,neural,bayesian]"
+jupyter lab
+```
+
+The Bayesian extra is only required for the Bayesian notebook, and the
+neural extra is only required for the model/neural notebook. These examples
+are educational; their sampling settings and synthetic data are not intended
+for scientific inference.
+
 ## Quick start: simulate a spatial field
 
 Model coordinates must be two-dimensional Euclidean coordinates, expressed

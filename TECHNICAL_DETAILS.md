@@ -397,3 +397,7 @@ The workflow is two-step: marginal parameter uncertainty is not
 propagated into the spatial fit. Trends, covariate-dependent margins,
 non-stationary dependence, and temporal dependence between replicates
 require additional modeling not provided here.
+
+For executable examples covering each max-stable model, pairwise Bayesian
+inference, the separate hierarchical Bayesian GEV margins model, and the
+optional neural estimator, see the [interactive notebooks](./README.md#interactive-walkthroughs).
